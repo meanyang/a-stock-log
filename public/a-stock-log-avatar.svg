@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="500" height="500" viewBox="0 0 500 500">
+  <!-- 定义渐变效果 -->
+  <defs>
+    <!-- 金色渐变 - 用于字母A -->
+    <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#d69e2e;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#b7791f;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#744210;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- 阴影效果 - 用于字母A -->
+    <filter id="dropShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="3" result="blur"/>
+      <feOffset in="blur" dx="2" dy="2" result="offsetBlur"/>
+      <feFlood flood-color="#000000" flood-opacity="0.3" result="offsetColor"/>
+      <feComposite in="offsetColor" in2="offsetBlur" operator="in" result="offsetBlur"/>
+      <feBlend in="SourceGraphic" in2="offsetBlur" mode="normal"/>
+    </filter>
+    
+    <!-- 轻微阴影效果 - 用于底部文字 -->
+    <filter id="lightShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="2" result="blur"/>
+      <feOffset in="blur" dx="1" dy="1" result="offsetBlur"/>
+      <feFlood flood-color="#000000" flood-opacity="0.2" result="offsetColor"/>
+      <feComposite in="offsetColor" in2="offsetBlur" operator="in" result="offsetBlur"/>
+      <feBlend in="SourceGraphic" in2="offsetBlur" mode="normal"/>
+    </filter>
+  </defs>
+  
+  <!-- 浅色背景圆 -->
+  <circle cx="250" cy="250" r="240" fill="#f7fafc"/>
+  
+  <!-- 简约的股票走势曲线 - 使用更深的红色 -->
+  <path d="M100,300 C120,280 140,290 160,270 S200,240 220,250 S260,220 280,230 S320,200 340,210 S380,180 400,190" 
+        fill="none" stroke="#c53030" stroke-width="6" stroke-linecap="round"/>
+  
+  <!-- 核心品牌标识 - 大写字母A - 加粗字体 -->
+  <text x="250" y="280" font-family="'Helvetica Neue', Arial, sans-serif" font-size="220" font-weight="900" 
+        text-anchor="middle" fill="url(#goldGradient)" filter="url(#dropShadow)">A</text>
+  
+  <!-- 品牌名称 - 加粗字体 -->
+  <text x="250" y="380" font-family="'Helvetica Neue', Arial, sans-serif" font-size="48" font-weight="800" 
+        text-anchor="middle" fill="#4a5568" filter="url(#lightShadow)">Stock Log</text>
+</svg>
