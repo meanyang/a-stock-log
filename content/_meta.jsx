@@ -1,16 +1,16 @@
 export default {
   index: '首页',
-  'dragon-tiger-list': {
-    title: '龙虎榜'
-  },
-  'knowledge-base': {
-    title: '知识库'
-  },
   'my-concepts': {
     title: '我的概念'
   },
+  'dragon-tiger-list': {
+    title: '龙虎榜'
+  },
   'my-strategies': {
     title: '我的策略'
+  },
+  'knowledge-base': {
+    title: '知识库'
   },
   contact: {
     title: '联系我们'
