@@ -3,11 +3,11 @@ export default {
   'my-concepts': {
     title: '我的概念'
   },
-  'dragon-tiger-list': {
-    title: '龙虎榜'
-  },
   'my-strategies': {
     title: '我的策略'
+  },
+  'dragon-tiger-list': {
+    title: '龙虎榜'
   },
   'knowledge-base': {
     title: '知识库'
