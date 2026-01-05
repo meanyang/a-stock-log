@@ -1,5 +1,5 @@
 export default {
-  index: '首页',
+  // index: '首页',
   'my-concepts': {
     title: '我的概念'
   },
