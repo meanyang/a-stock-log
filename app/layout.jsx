@@ -5,8 +5,8 @@ import 'nextra-theme-blog/style.css'
 
 export const metadata = {
     // 网站基本信息
-    title: 'AStockLog - 个人股票投资知识管理系统',
-    description: '一个基于Next.js和Nextra的个人股票投资知识管理与日志系统',
+    title: 'AStockLog - A股日志',
+    description: '一个A股投资知识管理与日志系统',
     // 添加favicon配置
     icons: {
         icon: [
@@ -31,14 +31,10 @@ const banner = (<Banner storageKey="AStockLog-release">AStockLog is released �
 export default async function RootLayout({ children }) {
     return (
         <html
-            // Not required, but good for SEO
             lang="zh-CN"
-            // Required to be set
-            dir="ltr"
-            // Suggested by `next-themes` package https://github.com/pacocoursey/next-themes#with-app
             suppressHydrationWarning
         >
-            <Head>
+            <Head backgroundColor={{ dark: '#0f172a', light: '#fefce8' }}>
                 {/* 添加favicon链接标签 */}
                 <link rel="icon" href="/favicon-16x16.png" sizes="16x16" type="image/png" />
                 <link rel="icon" href="/favicon-32x32.png" sizes="32x32" type="image/png" />
@@ -50,14 +46,14 @@ export default async function RootLayout({ children }) {
                 <link rel="shortcut icon" href="/favicon.ico" />
             </Head>
             <body>
-                <Layout
-                    banner={banner}
-                >
+                <Layout banner={banner}>
                     <Navbar pageMap={await getPageMap()}>
                         <Search />
                         <ThemeSwitch />
                     </Navbar>
+
                     {children}
+                    
                     <Footer>MIT {new Date().getFullYear()} © AStockLog.</Footer>
                 </Layout>
             </body>

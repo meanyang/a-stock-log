@@ -8,29 +8,36 @@ AStockLog是一个用于记录和管理股票投资相关知识、策略和日�
 
 ## 🛠️ 技术栈
 
-- **Next.js 14** - 现代化的React框架
+- **Next.js 16** - 现代化的React框架
 - **Nextra 4** - Next.js的静态站点生成器，支持MDX
-- **React 18** - 用于构建用户界面的JavaScript库
+- **React 19** - 用于构建用户界面的JavaScript库
 - **MDX** - 结合Markdown和JSX的内容格式
+- **Pagefind** - 静态站点搜索功能
 
 ## 📁 项目结构
 
 ```text
 .
 ├── app/                      # Next.js App Router 目录
-│   ├── [[...mdxPath]]/       # 动态路由，用于处理 MDX 内容
-│   │   └── page.jsx          # 动态页面组件
-│   └── layout.jsx            # 全局布局组件
-├── content/                  # 内容目录
-│   ├── dragon-tiger-list/    # 龙虎榜分析
-│   ├── knowledge/            # 股票知识
-│   ├── my-concepts/          # 概念解析
-│   ├── my-strategies/        # 交易策略
-│   └── index.mdx             # 首页内容
-├── next.config.mjs           # Next.js 配置
-├── mdx-components.js         # MDX 组件配置
-├── package.json              # 项目依赖
-└── README.md                 # 项目文档
+│   ├── about/               # 关于页面
+│   ├── contact/             # 联系页面
+│   ├── posts/               # 文章列表页面
+│   │   ├── (dragon-tiger-list)/  # 龙虎榜文章
+│   │   ├── (trend)/         # 趋势分析文章
+│   │   ├── get-posts.js     # 文章获取工具函数
+│   │   └── page.jsx         # 文章列表页面
+│   ├── tags/                # 标签分类页面
+│   │   └── [tag]/           # 动态标签页面
+│   ├── _archive/            # 归档内容
+│   ├── layout.jsx           # 全局布局组件
+│   ├── page.mdx             # 首页内容
+│   └── _meta.global.js      # 全局元数据配置
+├── .next/                   # Next.js构建输出
+├── node_modules/            # 项目依赖
+├── mdx-components.js       # MDX组件配置
+├── next.config.js          # Next.js配置
+├── package.json            # 项目依赖配置
+└── README.md               # 项目文档
 ```
 
 ## 🚀 快速开始
@@ -58,36 +65,63 @@ npm start
 
 ## 📝 内容组织
 
-网站内容使用MDX格式编写，存放在`content/`目录下：
+网站内容使用MDX格式编写，采用Nextra的App Router结构：
 
-- **my-strategies/** - 投资策略文档
-- **my-concepts/** - 投资概念和理念
-- **knowledge/** - 投资相关知识
-- **week-log/** - 每周投资日志
-- **dragon-tiger-list/** - 龙虎榜数据分析
+### 主要功能模块
 
-每个目录下的`.mdx`或`.md`文件会自动被解析为网站页面，目录结构会反映在网站的导航栏中。
+- **首页** (`/`) - 项目介绍和导航
+- **文章列表** (`/posts`) - 所有文章的聚合页面
+- **龙虎榜分析** (`/posts/dragon-tiger-list`) - 股票龙虎榜数据分析
+- **趋势分析** (`/posts/trend`) - 市场趋势和行业分析
+- **标签分类** (`/tags/[tag]`) - 按标签分类的文章
+- **归档内容** (`/_archive`) - 历史文章归档
+- **关于页面** (`/about`) - 项目介绍
+- **联系页面** (`/contact`) - 联系方式
+
+### 内容管理特点
+
+- **自动标签系统** - 文章自动按标签分类
+- **搜索功能** - 集成Pagefind实现全文搜索
+- **响应式设计** - 适配各种设备屏幕
+- **代码复用** - 使用可复用的组件架构
 
 ## 🎯 使用指南
 
-### 添加新内容
+### 添加新文章
 
-1. 在`content/`目录下的相应分类中创建新的`.mdx`或`.md`文件
-2. 使用Markdown或MDX语法编写内容
-3. 保存文件，开发服务器会自动刷新
+1. 在`app/posts/`目录下的相应分类中创建新的文章目录
+2. 在目录中创建`page.mdx`文件
+3. 使用MDX语法编写内容，包含必要的frontmatter：
+
+```mdx
+---
+title: "文章标题"
+date: "2025-01-01"
+tags: ["标签1", "标签2"]
+---
+
+文章内容...
+```
 
 ### 自定义导航
 
-在每个目录下创建`_meta.json`文件可以自定义导航菜单：
+在`app/_meta.global.js`中配置全局导航菜单：
 
-```json
-{
-  "some-file": "显示名称",
-  "some-folder": {
-    "title": "文件夹显示名称",
-    "position": 1
-  }
+```javascript
+export default {
+  index: '首页',
+  posts: '文章',
+  about: '关于',
+  contact: '联系'
 }
+```
+
+## 🔍 搜索功能
+
+项目集成了Pagefind搜索功能，构建后会自动生成搜索索引：
+
+```bash
+npm run build  # 自动执行postbuild脚本生成搜索索引
 ```
 
 ## 🎨 自定义主题
@@ -103,5 +137,10 @@ MIT License © 2025 AStockLog
 本项目为个人知识库，暂不接受外部贡献。
 
 ---
+
+**更新日志**
+- 2025-01-07: 重构代码结构，抽离重复逻辑为可复用组件
+- 2025-01-07: 集成Pagefind搜索功能
+- 2025-01-07: 优化项目结构和文档
 
 如有任何问题或建议，欢迎随时记录在您的知识库中！
