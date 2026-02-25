@@ -9,6 +9,7 @@
     "next": "^16.1.1",
     "nextra": "^4.6.1",
     "nextra-theme-blog": "^4.6.1",
+    "chart.js": "^4.4.5",
     "react": "^19.2.3",
     "react-dom": "^19.2.3"
   },
