@@ -56,30 +56,7 @@ npm run dev
 
 访问 http://localhost:3000 查看网站。
 
-## 🔐 环境配置
-
-使用 Tushare Pro 作为日 K 数据源，请先配置本地环境变量：
-
-1. 复制示例环境文件：
-   ```bash
-   cp .env.local.sample .env.local
-   ```
-2. 在 `.env.local` 中填写你的 Token：
-   ```bash
-   TUSHARE_TOKEN=YOUR_TUSHARE_PRO_TOKEN
-   ```
-3. 重新启动开发服务以加载变量：
-   ```bash
-   npm run dev
-   ```
-
-注意：`.env.local` 已加入 `.gitignore`，请勿提交真实 Token。示例文件 `.env.local.sample` 会随仓库分发，便于团队成员快速配置。
-
-### 接口与验证
-- 预测接口：`/api/predict?symbol=600519`（支持 6 位代码、`ts_code` 或名称）
-- 首页“股票走势预测”模块已对接该接口，可直接在页面输入代码或名称进行验证
-
-## 生产构建
+### 生产构建
 
 ```bash
 npm run build
