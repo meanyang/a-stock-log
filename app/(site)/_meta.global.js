@@ -15,5 +15,4 @@ export default {
     title: '联系我们',
     type: 'page'
   }
-
 }

@@ -1,4 +1,7 @@
-import { Head } from 'nextra/components'
+import { Footer, Layout, Navbar, ThemeSwitch } from 'nextra-theme-blog'
+import { Banner, Head, Search } from 'nextra/components'
+import { getPageMap } from 'nextra/page-map'
+import 'nextra-theme-blog/style.css'
 
 export const metadata = {
   title: 'AStockLog - A股日志',
@@ -19,7 +22,9 @@ export const metadata = {
   }
 }
 
-export default async function RootLayout({ children }) {
+const banner = <Banner storageKey="AStockLog-release">AStockLog is released 🎉</Banner>
+
+export default async function SiteLayout({ children }) {
   return (
     <html lang="zh-CN" suppressHydrationWarning>
       <Head backgroundColor={{ dark: '#0f172a', light: '#fefce8' }}>
@@ -32,7 +37,17 @@ export default async function RootLayout({ children }) {
         <link rel="android-chrome" href="/android-chrome-512x512.png" sizes="512x512" />
         <link rel="shortcut icon" href="/favicon.ico" />
       </Head>
-      <body>{children}</body>
+      <body>
+        <Layout banner={banner}>
+          <Navbar pageMap={await getPageMap()}>
+            <Search />
+            <ThemeSwitch />
+          </Navbar>
+          {children}
+          <Footer>MIT {new Date().getFullYear()} © AStockLog.</Footer>
+        </Layout>
+      </body>
     </html>
   )
 }
+

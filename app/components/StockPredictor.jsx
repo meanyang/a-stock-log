@@ -51,6 +51,7 @@ export default function StockPredictor() {
   const [error, setError] = useState('')
   const canvasRef = useRef(null)
   const chartRef = useRef(null)
+  const [isMobile, setIsMobile] = useState(false)
 
   const labels = useMemo(() => {
     if (!data) return []
@@ -65,6 +66,13 @@ export default function StockPredictor() {
     const pad = new Array(data.history.length - 1).fill(null)
     return [...pad, data.history[data.history.length - 1].close, ...data.forecast.map(d => d.close)]
   }, [data])
+
+  useEffect(() => {
+    const onResize = () => setIsMobile(typeof window !== 'undefined' && window.innerWidth < 640)
+    onResize()
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
 
   useEffect(() => {
     if (!canvasRef.current) return
@@ -102,7 +110,15 @@ export default function StockPredictor() {
   return (
     <div className="not-prose" style={{ border: '1px solid var(--accents-2)', borderRadius: 10, padding: 16 }}>
       <h2 style={{ marginTop: 0 }}>股票走势预测</h2>
-      <form onSubmit={onSearch} style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+      <form
+        onSubmit={onSearch}
+        style={{
+          display: 'flex',
+          gap: 8,
+          marginBottom: 12,
+          flexDirection: isMobile ? 'column' : 'row'
+        }}
+      >
         <input
           type="text"
           value={symbol}
@@ -111,14 +127,24 @@ export default function StockPredictor() {
           aria-label="股票代码或名称"
           style={{ flex: 1, padding: '8px 10px', border: '1px solid var(--accents-2)', borderRadius: 8 }}
         />
-        <button type="submit" disabled={loading} style={{ padding: '8px 14px', borderRadius: 8 }}>
+        <button
+          type="submit"
+          disabled={loading}
+          style={{ padding: '8px 14px', borderRadius: 8, width: isMobile ? '100%' : undefined }}
+        >
           {loading ? '预测中…' : '开始预测'}
         </button>
       </form>
       {error && (
         <div style={{ color: 'var(--red-500)', marginBottom: 8 }}>错误：{error}</div>
       )}
-      <div style={{ position: 'relative', width: '100%', height: 320 }}>
+      <div
+        style={{
+          position: 'relative',
+          width: '100%',
+          height: 'min(480px, max(220px, 60vw))'
+        }}
+      >
         <canvas ref={canvasRef} />
       </div>
       <p style={{ fontSize: 12, color: 'var(--accents-5)', marginTop: 8 }}>
@@ -127,4 +153,3 @@ export default function StockPredictor() {
     </div>
   )
 }
-
