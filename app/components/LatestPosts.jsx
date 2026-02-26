@@ -1,5 +1,5 @@
 import { PostCard } from 'nextra-theme-blog'
-import { getPosts } from '../posts/get-posts'
+import { getPosts } from '../(site)/posts/get-posts'
 import Link from 'next/link'
 
 export const metadata = {
