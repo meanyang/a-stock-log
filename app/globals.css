@@ -1,0 +1,5 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 保持全局样式最小化，避免影响站点其他页面样式 */

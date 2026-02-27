@@ -1,4 +1,5 @@
 import { Head } from 'nextra/components'
+import './globals.css'
 
 export const metadata = {
   title: 'AStockLog - A股日志',
@@ -22,7 +23,11 @@ export const metadata = {
 export default async function RootLayout({ children }) {
   return (
     <html lang="zh-CN" suppressHydrationWarning>
-      <Head backgroundColor={{ dark: '#0f172a', light: '#fefce8' }}>
+      <Head>
+        <link
+          rel="stylesheet"
+          href="https://unpkg.com/nextra-theme-blog@4.6.1/dist/style.css"
+        />
         <link rel="icon" href="/favicon-16x16.png" sizes="16x16" type="image/png" />
         <link rel="icon" href="/favicon-32x32.png" sizes="32x32" type="image/png" />
         <link rel="icon" href="/favicon.ico" type="image/x-icon" />
