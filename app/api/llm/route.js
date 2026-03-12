@@ -544,7 +544,7 @@ export async function GET(request) {
   if (action === 'models') {
     const models = [
      { id: 'arcee-ai/trinity-large-preview:free', name: 'Arcee AI: Trinity Large Preview', type: 'chat', enabled: true },
-     { id: 'stepfun/step-3.5-flash:free', name: 'StepFun: Step-3.5-Flash', type: 'chat', enabled: true }
+     { id: 'nvidia/nemotron-3-super-120b-a12b:free', name: 'NVIDIA: Nemotron 3 Super', type: 'chat', enabled: true }
     ]
     return ok({ code: 0, data: { models } })
   }
