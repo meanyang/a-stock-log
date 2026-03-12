@@ -137,7 +137,7 @@ export default function StockPredictor({ variant = 'neo' }) {
     if (range === '3M') return 61
     if (range === '6M') return 122
     if (range === '1Y') return 245
-    return Math.max(120, candles.length) // RESET
+    return Math.max(120, candles.length)
   }, [range, candles.length])
 
   const labels = useMemo(() => {
@@ -341,10 +341,28 @@ export default function StockPredictor({ variant = 'neo' }) {
 
   async function fetchDaily(input) {
     const today = new Date()
-    const start = new Date(Date.now() - 1000 * 60 * 60 * 24 * 600)
+    const daySpan = range === '3M' ? 100 : range === '6M' ? 200 : 400
+    const start = new Date(Date.now() - 1000 * 60 * 60 * 24 * daySpan)
     const start_date = `${start.getFullYear()}${String(start.getMonth() + 1).padStart(2, '0')}${String(start.getDate()).padStart(2, '0')}`
     const end_date = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`
-    const res = await fetch(`/api/tushare/daily?input=${encodeURIComponent(input)}&start_date=${start_date}&end_date=${end_date}`)
+    const raw = String(input || '').trim()
+    if (!raw) throw new Error('请输入股票代码或名称')
+    const upper = raw.toUpperCase()
+    let code = ''
+    if (/^\d{6}\.(SH|SZ|BJ)$/.test(upper)) {
+      code = upper
+    } else if (/^\d{6}$/.test(upper)) {
+      if (upper.startsWith('6')) code = `${upper}.SH`
+      else if (upper.startsWith('4') || upper.startsWith('8')) code = `${upper}.BJ`
+      else code = `${upper}.SZ`
+    } else {
+      const r = await fetch(`/api/tushare/info?input=${encodeURIComponent(raw)}`)
+      if (!r.ok) throw new Error(`信息接口失败：${r.status}`)
+      const j = await r.json()
+      if (j.code !== 0 || !j.data || !j.data.ts_code) throw new Error(j.msg || '无法解析股票名称')
+      code = j.data.ts_code
+    }
+    const res = await fetch(`/api/tushare/daily?input=${encodeURIComponent(code)}&start_date=${start_date}&end_date=${end_date}`)
     if (!res.ok) throw new Error(`日线接口失败：${res.status}`)
     const json = await res.json()
     if (json.code !== 0) throw new Error(json.msg || '日线接口返回错误')
@@ -569,12 +587,12 @@ export default function StockPredictor({ variant = 'neo' }) {
           <select value={selectedModel} onChange={onChangeModel} style={{ padding: 6, borderRadius: 8, border: '1px solid var(--accents-2)' }}>
             {models.map(m => <option key={m.id} value={m.id}>{m.name || m.id}</option>)}
           </select>
-          <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-            <button type="button" onClick={() => setRange('3M')}>近3月</button>
-            <button type="button" onClick={() => setRange('6M')}>近6月</button>
-            <button type="button" onClick={() => setRange('1Y')}>近1年</button>
-            <button type="button" onClick={() => setRange('RESET')}>重置</button>
-          </div>
+          <label style={{ color: 'var(--accents-5)', marginLeft: 12 }}>数据时长</label>
+          <select value={range} onChange={e => setRange(e.target.value)} style={{ padding: 6, borderRadius: 8, border: '1px solid var(--accents-2)' }}>
+            <option value="3M">近3月</option>
+            <option value="6M">近半年</option>
+            <option value="1Y">近一年</option>
+          </select>
         </div>
         {error && <div style={{ color: 'var(--red-500)', marginBottom: 8 }}>错误：{error}</div>}
         <div style={{ position: 'relative', width: '100%', height: 'min(480px, max(220px, 60vw))' }}>
@@ -648,11 +666,17 @@ export default function StockPredictor({ variant = 'neo' }) {
             {models.map(m => <option key={m.id} value={m.id}>{m.name || m.id}</option>)}
           </select>
         </div>
-        <div className="ml-0 flex gap-2 sm:ml-auto">
-          <button type="button" onClick={() => setRange('3M')} className={`rounded-md px-2 py-1 text-sm ${range==='3M'?'bg-cyan-600/30 border border-cyan-400/50':'bg-slate-800/50 border border-slate-700'}`}>近3月</button>
-          <button type="button" onClick={() => setRange('6M')} className={`rounded-md px-2 py-1 text-sm ${range==='6M'?'bg-cyan-600/30 border border-cyan-400/50':'bg-slate-800/50 border border-slate-700'}`}>近6月</button>
-          <button type="button" onClick={() => setRange('1Y')} className={`rounded-md px-2 py-1 text-sm ${range==='1Y'?'bg-cyan-600/30 border border-cyan-400/50':'bg-slate-800/50 border border-slate-700'}`}>近1年</button>
-          <button type="button" onClick={() => setRange('RESET')} className={`rounded-md px-2 py-1 text-sm ${range==='RESET'?'bg-cyan-600/30 border border-cyan-400/50':'bg-slate-800/50 border border-slate-700'}`}>重置</button>
+        <div className="ml-0 flex items-center gap-2 sm:ml-auto">
+          <span className="text-sm text-slate-400">数据时长</span>
+          <select
+            value={range}
+            onChange={e => setRange(e.target.value)}
+            className="rounded-md border border-slate-600 bg-slate-950/70 px-2 py-1 text-sm text-slate-100"
+          >
+            <option value="3M">近3月</option>
+            <option value="6M">近半年</option>
+            <option value="1Y">近一年</option>
+          </select>
         </div>
       </div>
       {error && <div className="mb-2 text-sm text-red-400 md:mb-3">错误：{error}</div>}

@@ -224,11 +224,23 @@ async function translateExplanation(provider, model, sysPrompt, explanation) {
       ...(process.env.OPENROUTER_HTTP_REFERER ? { 'HTTP-Referer': process.env.OPENROUTER_HTTP_REFERER } : {}),
       ...(process.env.OPENROUTER_APP_TITLE ? { 'X-Title': process.env.OPENROUTER_APP_TITLE } : {})
     }
-    const body = { model: model || (process.env.OPENROUTER_MODEL || 'openai/gpt-4o-mini'), messages: [{ role: 'system', content: system }, { role: 'user', content: user }], temperature, max_tokens: maxTokens }
+    const body = {
+      model: model || (process.env.OPENROUTER_MODEL || 'openai/gpt-4o-mini'),
+      messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
+      temperature,
+      max_tokens: maxTokens,
+      include_reasoning: false,
+      response_format: { type: 'json_object' }
+    }
     const res = await fetch(OPENROUTER_URL, { method: 'POST', headers, body: JSON.stringify(body) })
     if (!res.ok) return explanation
     const json = await res.json()
-    const text = json?.choices?.[0]?.message?.content || ''
+    let text = ''
+    const ch = json?.choices?.[0]?.message
+    if (ch && typeof ch.content === 'string' && ch.content.trim()) text = ch.content
+    else if (ch && ch.reasoning != null) {
+      text = typeof ch.reasoning === 'string' ? ch.reasoning : (() => { try { return JSON.stringify(ch.reasoning) } catch { return '' } })()
+    }
     return parseTranslation(text)
   }
 }
@@ -329,7 +341,9 @@ async function callOpenRouter(input, horizon, model, sysPrompt) {
       { role: 'user', content: prompt.user }
     ],
     temperature,
-    max_tokens: maxTokens
+    max_tokens: maxTokens,
+    include_reasoning: false,
+    response_format: { type: 'json_object' }
   }
   const res = await fetch(OPENROUTER_URL, { method: 'POST', headers, body: JSON.stringify(body) })
   if (!res.ok) {
@@ -340,7 +354,17 @@ async function callOpenRouter(input, horizon, model, sysPrompt) {
   }
   const json = await res.json()
   const choice = json && json.choices && json.choices[0]
-  const text = choice && choice.message && choice.message.content || ''
+  let text = ''
+  if (choice && choice.message) {
+    const c = choice.message
+    if (typeof c.content === 'string' && c.content.trim()) text = c.content
+    else if (c.reasoning != null) {
+      if (typeof c.reasoning === 'string') text = c.reasoning
+      else {
+        try { text = JSON.stringify(c.reasoning) } catch { text = '' }
+      }
+    }
+  }
   if (DEBUG) try { console.log('[llm] openrouter raw', String(text).slice(0, 300)) } catch {}
   if (DEBUG) try {
     console.log('[llm] openrouter output', {
