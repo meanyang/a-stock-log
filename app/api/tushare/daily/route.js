@@ -72,10 +72,7 @@ async function resolveTsCode(input) {
       if (/^bj\d{6}$/i.test(symbol)) return { ts_code: `${symbol.slice(2)}.BJ` }
     }
   } catch {}
-  const r = await fetchTushare('stock_basic', { name: input, list_status: 'L' }, 'ts_code,name')
-  if (r.error) return { error: r.error }
-  if (!r.rows.length) return { error: 'Symbol not found' }
-  return { ts_code: r.rows[0].ts_code }
+  return { error: 'Symbol not found' }
 }
 
 export async function GET(request) {
