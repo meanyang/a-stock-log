@@ -58,6 +58,20 @@ async function fetchTushare(api_name, params, fields) {
 async function resolveTsCode(input) {
   const normalized = normalizeInput(input)
   if (normalized) return { ts_code: normalized }
+  try {
+    const url = `http://suggest3.sinajs.cn/suggest?type=&key=${encodeURIComponent(input)}&name=suggestdata`
+    const res = await fetch(url)
+    const text = await res.text()
+    const m = text.match(/="([^"]*)"/)
+    if (m && m[1]) {
+      const first = m[1].split(';')[0] || ''
+      const fields = first.split(',')
+      const symbol = fields[3] || ''
+      if (/^sh\d{6}$/i.test(symbol)) return { ts_code: `${symbol.slice(2)}.SH` }
+      if (/^sz\d{6}$/i.test(symbol)) return { ts_code: `${symbol.slice(2)}.SZ` }
+      if (/^bj\d{6}$/i.test(symbol)) return { ts_code: `${symbol.slice(2)}.BJ` }
+    }
+  } catch {}
   const r = await fetchTushare('stock_basic', { name: input, list_status: 'L' }, 'ts_code,name')
   if (r.error) return { error: r.error }
   if (!r.rows.length) return { error: 'Symbol not found' }
@@ -72,12 +86,12 @@ export async function GET(request) {
   const limit = Number(url.searchParams.get('limit') || 400)
   if (!input) return ok({ code: 400, msg: 'input required' }, 400)
 
-  const tokenSet = !!process.env.TUSHARE_TOKEN
-  if (!tokenSet) return ok({ code: -1, msg: 'Missing TUSHARE_TOKEN' }, 500)
-
   const resolved = await resolveTsCode(input)
   if (resolved.error) return ok({ code: 1, msg: resolved.error }, 400)
   const ts_code = resolved.ts_code
+
+  const tokenSet = !!process.env.TUSHARE_TOKEN
+  if (!tokenSet) return ok({ code: -1, msg: 'Missing TUSHARE_TOKEN' }, 500)
 
   const todayStr = yyyymmdd(new Date())
   const needUpdateAfter18 = isAfter18()
@@ -118,4 +132,3 @@ export async function GET(request) {
   }
   return ok({ code: 0, data: merged })
 }
-
