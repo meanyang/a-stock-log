@@ -59,17 +59,26 @@ async function resolveTsCode(input) {
   const normalized = normalizeInput(input)
   if (normalized) return { ts_code: normalized }
   try {
-    const url = `http://suggest3.sinajs.cn/suggest?type=&key=${encodeURIComponent(input)}&name=suggestdata`
-    const res = await fetch(url)
+    const s = String(input || '').trim()
+    const url = `http://suggest3.sinajs.cn/suggest/type=&key=${encodeURIComponent(s)}&name=suggestdata`
+    const res = await fetch(url, { cache: 'no-store' })
     const text = await res.text()
     const m = text.match(/="([^"]*)"/)
     if (m && m[1]) {
-      const first = m[1].split(';')[0] || ''
-      const fields = first.split(',')
-      const symbol = fields[3] || ''
-      if (/^sh\d{6}$/i.test(symbol)) return { ts_code: `${symbol.slice(2)}.SH` }
-      if (/^sz\d{6}$/i.test(symbol)) return { ts_code: `${symbol.slice(2)}.SZ` }
-      if (/^bj\d{6}$/i.test(symbol)) return { ts_code: `${symbol.slice(2)}.BJ` }
+      const stocks = m[1].split(';').filter(Boolean)
+      for (const item of stocks) {
+        const fields = item.split(',')
+        const symbol = fields[3] || ''
+        if (/^sh\d{6}$/i.test(symbol)) return { ts_code: `${symbol.slice(2)}.SH` }
+        if (/^sz\d{6}$/i.test(symbol)) return { ts_code: `${symbol.slice(2)}.SZ` }
+        if (/^bj\d{6}$/i.test(symbol)) return { ts_code: `${symbol.slice(2)}.BJ` }
+        const code6 = fields[1] || fields[2] || ''
+        if (/^\d{6}$/.test(code6)) {
+          if (code6.startsWith('6')) return { ts_code: `${code6}.SH` }
+          if (code6.startsWith('4') || code6.startsWith('8')) return { ts_code: `${code6}.BJ` }
+          return { ts_code: `${code6}.SZ` }
+        }
+      }
     }
   } catch {}
   return { error: 'Symbol not found' }
