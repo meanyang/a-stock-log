@@ -249,7 +249,7 @@ function buildPrompt(input, horizon, sysPrompt) {
   const header = [
     `Predict only the next ${horizon} trading days closing prices.`,
     `Output strictly JSON with keys "forecast" and "explanation":`,
-    `{"forecast":[{"date":"YYYY-MM-DD","close":number},...],"explanation":["要点1","要点2",...]}.`,
+    `{"forecast":[{"date":"YYYY-MM-DD","close":number},...],"explanation":["key point1","key point2",...]}.`,
     `Return exactly ${horizon} future trading days starting after last_date; do not include any historical items.`,
     `Skip weekends; base continuity from last_close.`,
   ].join(' ')

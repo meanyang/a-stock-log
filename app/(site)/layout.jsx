@@ -2,6 +2,7 @@ import { Footer, Layout, Navbar, ThemeSwitch } from 'nextra-theme-blog'
 import { Banner, Search } from 'nextra/components'
 import { getPageMap } from 'nextra/page-map'
 import ClientOnly from '../components/ClientOnly'
+import styles from './layout.module.css'
 
 export const metadata = {
   title: 'AStockLog - A股日志',
@@ -26,15 +27,18 @@ const banner = <Banner storageKey="AStockLog-release">AStockLog is released 🎉
 
 export default async function SiteLayout({ children }) {
   return (
-    <Layout banner={banner}>
-      <ClientOnly>
-        <Navbar pageMap={await getPageMap()}>
-          <Search />
-          <ThemeSwitch />
-        </Navbar>
-      </ClientOnly>
-      {children}
-      <Footer>MIT {new Date().getFullYear()} © AStockLog.</Footer>
-    </Layout>
+    <>
+      <a href="#main-content" className={styles.skipLink}>跳到内容</a>
+      <Layout banner={banner}>
+        <ClientOnly>
+          <Navbar pageMap={await getPageMap()}>
+            <Search />
+            <ThemeSwitch />
+          </Navbar>
+        </ClientOnly>
+        <main id="main-content">{children}</main>
+        <Footer>MIT {new Date().getFullYear()} © AStockLog.</Footer>
+      </Layout>
+    </>
   )
 }

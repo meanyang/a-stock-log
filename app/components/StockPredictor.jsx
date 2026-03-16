@@ -203,7 +203,7 @@ export default function StockPredictor({ variant = 'neo' }) {
         pointRadius: 0
       },
       ...(forecastLLM && forecastLLM.length ? [{
-        label: '预测（模型）',
+        label: '预测（大模型）',
         data: forecastValuesLLM,
         borderColor: 'rgba(234,88,12,0.95)',
         backgroundColor: 'rgba(251,146,60,0.25)',
@@ -212,7 +212,7 @@ export default function StockPredictor({ variant = 'neo' }) {
         pointRadius: 0
       }] : []),
       ...(forecastLocal && forecastLocal.length ? [{
-        label: '预测（本地）',
+        label: '预测（本地模型）',
         data: forecastValuesLocal,
         borderColor: 'rgba(59,130,246,0.95)',
         backgroundColor: 'rgba(59,130,246,0.25)',
@@ -560,7 +560,7 @@ export default function StockPredictor({ variant = 'neo' }) {
 
   if (variant === 'classic') {
     return (
-      <div className="not-prose" style={{ border: '1px solid var(--accents-2)', borderRadius: 10, padding: 16 }}>
+      <div className="not-prose" style={{ border: '1px solid var(--color-border)', borderRadius: 10, padding: 16 }}>
         <h2 style={{ marginTop: 0 }}>股票走势预测</h2>
         <form
           onSubmit={onSearch}
@@ -572,23 +572,23 @@ export default function StockPredictor({ variant = 'neo' }) {
             onChange={e => setSymbol(e.target.value)}
             placeholder="输入股票代码或名称"
             aria-label="股票代码或名称"
-            style={{ flex: 1, padding: '8px 10px', border: '1px solid var(--accents-2)', borderRadius: 8 }}
+            style={{ flex: 1, padding: '8px 10px', border: '1px solid var(--color-border)', borderRadius: 8, background: 'var(--color-bg)' }}
           />
           <button
             type="submit"
             disabled={loading}
-            style={{ padding: '8px 14px', borderRadius: 8, width: isMobile ? '100%' : undefined }}
+            style={{ padding: '8px 14px', borderRadius: 8, width: isMobile ? '100%' : undefined, border: '1px solid var(--color-border)' }}
           >
             {loading ? '预测中…' : '开始预测'}
           </button>
         </form>
         <div style={{ display: 'flex', gap: 8, marginBottom: 12, alignItems: 'center' }}>
-          <label style={{ color: 'var(--accents-5)' }}>选择AI模型</label>
-          <select value={selectedModel} onChange={onChangeModel} style={{ padding: 6, borderRadius: 8, border: '1px solid var(--accents-2)' }}>
+          <label style={{ color: 'var(--color-muted)' }}>选择AI模型</label>
+          <select value={selectedModel} onChange={onChangeModel} style={{ padding: 6, borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-bg)' }}>
             {models.map(m => <option key={m.id} value={m.id}>{m.name || m.id}</option>)}
           </select>
-          <label style={{ color: 'var(--accents-5)', marginLeft: 12 }}>数据时长</label>
-          <select value={range} onChange={e => setRange(e.target.value)} style={{ padding: 6, borderRadius: 8, border: '1px solid var(--accents-2)' }}>
+          <label style={{ color: 'var(--color-muted)', marginLeft: 12 }}>数据时长</label>
+          <select value={range} onChange={e => setRange(e.target.value)} style={{ padding: 6, borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-bg)' }}>
             <option value="3M">近3月</option>
             <option value="6M">近半年</option>
             <option value="1Y">近一年</option>
@@ -599,7 +599,7 @@ export default function StockPredictor({ variant = 'neo' }) {
           <canvas ref={canvasRef} />
           {loading && (
             <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(2,6,23,0.55)' }}>
-              <div style={{ width: '86%', maxWidth: 560, border: '1px solid var(--accents-2)', borderRadius: 12, padding: 16, background: 'rgba(2,6,23,0.8)' }}>
+              <div style={{ width: '86%', maxWidth: 560, border: '1px solid var(--color-border)', borderRadius: 12, padding: 16, background: 'rgba(2,6,23,0.8)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                   <div style={{ width: 10, height: 10, borderRadius: 999, background: 'var(--cyan-500)', animation: 'pulse 1s infinite' }} />
                   <div style={{ color: 'var(--accents-6)', fontSize: 14 }}>预测中…</div>
@@ -657,7 +657,7 @@ export default function StockPredictor({ variant = 'neo' }) {
       </form>
       <div className="mb-3 flex flex-col items-start gap-2 sm:flex-row sm:items-center md:mb-4">
         <div className="flex items-center gap-2">
-          <span className="text-sm text-slate-400">选择AI模型</span>
+          <span className="text-sm text-slate-400">选择预测模型</span>
           <select
             value={selectedModel}
             onChange={onChangeModel}
