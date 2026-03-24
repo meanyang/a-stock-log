@@ -82,6 +82,10 @@ export default function StockPredictor({ variant = 'neo' }) {
   const canvasRef = useRef(null)
   const chartRef = useRef(null)
   const [isMobile, setIsMobile] = useState(false)
+  const [suggestions, setSuggestions] = useState([])
+  const [showSuggest, setShowSuggest] = useState(false)
+  const [selectedTsCode, setSelectedTsCode] = useState('')
+  const suggestTimer = useRef(null)
   const stepDefs = useMemo(() => ([
     { key: 'fetch', label: '拉取日线数据' },
     { key: 'fetch.req', label: '  • 请求已发送' },
@@ -356,11 +360,17 @@ export default function StockPredictor({ variant = 'neo' }) {
       else if (upper.startsWith('4') || upper.startsWith('8')) code = `${upper}.BJ`
       else code = `${upper}.SZ`
     } else {
-      const r = await fetch(`/api/tushare/info?input=${encodeURIComponent(raw)}`)
+      const r = await fetch(`/api/stocks/search?query=${encodeURIComponent(raw)}&limit=10`, { cache: 'no-store' })
       if (!r.ok) throw new Error(`信息接口失败：${r.status}`)
       const j = await r.json()
-      if (j.code !== 0 || !j.data || !j.data.ts_code) throw new Error(j.msg || '无法解析股票名称')
-      code = j.data.ts_code
+      const list = j && j.data && Array.isArray(j.data.list) ? j.data.list : []
+      if (!list.length) throw new Error('未找到该股票，请从下拉列表选择')
+      if (list.length > 1) {
+        setSuggestions(list)
+        setShowSuggest(true)
+        throw new Error('匹配到多个股票，请从下拉列表选择')
+      }
+      code = list[0].ts_code
     }
     const res = await fetch(`/api/tushare/daily?input=${encodeURIComponent(code)}&start_date=${start_date}&end_date=${end_date}`)
     if (!res.ok) throw new Error(`日线接口失败：${res.status}`)
@@ -461,9 +471,48 @@ export default function StockPredictor({ variant = 'neo' }) {
     return out
   }
 
+  async function fetchSuggest(q) {
+    const s = String(q || '').trim()
+    if (!s) {
+      setSuggestions([])
+      setShowSuggest(false)
+      return
+    }
+    try {
+      const res = await fetch(`/api/stocks/search?query=${encodeURIComponent(s)}&limit=20`, { cache: 'no-store' })
+      if (!res.ok) return
+      const j = await res.json()
+      const list = j && j.data && Array.isArray(j.data.list) ? j.data.list : []
+      setSuggestions(list)
+      setShowSuggest(list.length > 0)
+    } catch {
+      setSuggestions([])
+      setShowSuggest(false)
+    }
+  }
+
+  function onChangeSymbol(e) {
+    const v = e.target.value
+    setSymbol(v)
+    setSelectedTsCode('')
+    if (suggestTimer.current) {
+      clearTimeout(suggestTimer.current)
+      suggestTimer.current = null
+    }
+    suggestTimer.current = setTimeout(() => {
+      fetchSuggest(v)
+    }, 180)
+  }
+
+  function onPickSuggestion(item) {
+    setSymbol(item.name || '')
+    setSelectedTsCode(item.ts_code || `${item.symbol}.${item.exchange_code}`)
+    setShowSuggest(false)
+  }
+
   async function onSearch(e) {
     e.preventDefault()
-    const s = symbol.trim()
+    const s = (selectedTsCode || symbol).trim()
     if (!s) return
     setLoading(true)
     resetSteps()
@@ -566,14 +615,34 @@ export default function StockPredictor({ variant = 'neo' }) {
           onSubmit={onSearch}
           style={{ display: 'flex', gap: 8, marginBottom: 12, flexDirection: isMobile ? 'column' : 'row' }}
         >
-          <input
-            type="text"
-            value={symbol}
-            onChange={e => setSymbol(e.target.value)}
-            placeholder="输入股票代码或名称"
-            aria-label="股票代码或名称"
-            style={{ flex: 1, padding: '8px 10px', border: '1px solid var(--color-border)', borderRadius: 8, background: 'var(--color-bg)' }}
-          />
+          <div style={{ position: 'relative', flex: 1 }}>
+            <input
+              type="text"
+              value={symbol}
+              onChange={onChangeSymbol}
+              onFocus={() => suggestions.length && setShowSuggest(true)}
+              onBlur={() => setTimeout(() => setShowSuggest(false), 150)}
+              placeholder="输入股票代码或名称"
+              aria-label="股票代码或名称"
+              style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--color-border)', borderRadius: 8, background: 'var(--color-bg)' }}
+            />
+            {showSuggest && (
+              <div style={{ position: 'absolute', zIndex: 20, top: '100%', left: 0, right: 0, background: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: 8, marginTop: 6, maxHeight: 260, overflowY: 'auto' }}>
+                {suggestions.map((s, idx) => (
+                  <div
+                    key={`${s.ts_code}-${idx}`}
+                    onMouseDown={() => onPickSuggestion(s)}
+                    style={{ padding: '8px 10px', cursor: 'pointer', borderBottom: '1px solid var(--accents-2)' }}
+                  >
+                    <span style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>{s.ts_code}</span>
+                    <span style={{ marginLeft: 8 }}>{s.name}</span>
+                    {!!s.board && <span style={{ marginLeft: 8, fontSize: 12, color: 'var(--accents-5)' }}>{s.board}</span>}
+                  </div>
+                ))}
+                {!suggestions.length && <div style={{ padding: '8px 10px', color: 'var(--accents-5)' }}>无匹配结果</div>}
+              </div>
+            )}
+          </div>
           <button
             type="submit"
             disabled={loading}
@@ -639,14 +708,34 @@ export default function StockPredictor({ variant = 'neo' }) {
     <div className="not-prose rounded-xl border border-slate-700/60 bg-slate-900/40 p-4 shadow-lg backdrop-blur md:p-6">
       <h2 className="mt-0 text-lg font-semibold text-slate-100 md:text-xl">股票走势预测</h2>
       <form onSubmit={onSearch} className="mb-3 flex flex-col gap-2 sm:flex-row md:mb-4">
-        <input
-          type="text"
-          value={symbol}
-          onChange={e => setSymbol(e.target.value)}
-          placeholder="输入股票代码或名称"
-          aria-label="股票代码或名称"
-          className="flex-1 rounded-lg border border-cyan-400/40 bg-slate-950/70 px-3 py-2 text-slate-100 placeholder:text-slate-400 outline-none"
-        />
+        <div className="relative w-full sm:flex-1">
+          <input
+            type="text"
+            value={symbol}
+            onChange={onChangeSymbol}
+            onFocus={() => suggestions.length && setShowSuggest(true)}
+            onBlur={() => setTimeout(() => setShowSuggest(false), 150)}
+            placeholder="输入股票代码或名称"
+            aria-label="股票代码或名称"
+            className="w-full rounded-lg border border-cyan-400/40 bg-slate-950/70 px-3 py-2 text-slate-100 placeholder:text-slate-400 outline-none"
+          />
+          {showSuggest && (
+            <div className="absolute z-20 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border border-slate-700 bg-slate-950/95 shadow-lg">
+              {suggestions.map((s, idx) => (
+                <div
+                  key={`${s.ts_code}-${idx}`}
+                  onMouseDown={() => onPickSuggestion(s)}
+                  className="cursor-pointer border-b border-slate-800 px-3 py-2 hover:bg-slate-800/60"
+                >
+                  <span className="font-mono text-slate-100">{s.ts_code}</span>
+                  <span className="ml-2 text-slate-200">{s.name}</span>
+                  {!!s.board && <span className="ml-2 text-xs text-slate-400">{s.board}</span>}
+                </div>
+              ))}
+              {!suggestions.length && <div className="px-3 py-2 text-slate-400">无匹配结果</div>}
+            </div>
+          )}
+        </div>
         <button
           type="submit"
           disabled={loading}
