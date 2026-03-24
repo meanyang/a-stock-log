@@ -3,3 +3,19 @@ _pagefind/
 .next/
 .DS_Store
 .env*
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.pytype/
+.coverage
+htmlcov/
+.venv/
+venv/
+ENV/
+env/
+scripts/akshare/_pydeps/

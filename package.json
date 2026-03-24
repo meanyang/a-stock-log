@@ -3,7 +3,9 @@
     "dev": "next",
     "build": "next build",
     "start": "next start",
-    "postbuild": "pagefind --site .next/server/app --output-path public/_pagefind"
+    "postbuild": "pagefind --site .next/server/app --output-path public/_pagefind",
+    "db:migrate": "node scripts/db/migrate.mjs",
+    "sync:stocks": "node scripts/sync-stocks.mjs"
   },
   "dependencies": {
     "next": "^16.1.1",
@@ -11,7 +13,8 @@
     "nextra-theme-blog": "^4.6.1",
     "chart.js": "^4.4.5",
     "react": "^19.2.3",
-    "react-dom": "^19.2.3"
+    "react-dom": "^19.2.3",
+    "pg": "^8.16.3"
   },
   "devDependencies": {
     "pagefind": "^1.4.0",

@@ -1,0 +1,40 @@
+name: Sync stocks
+
+on:
+  schedule:
+    - cron: '10 10 * * 1-5'
+  workflow_dispatch: {}
+
+concurrency:
+  group: sync-stocks
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: scripts/akshare/requirements.txt
+
+      - run: npm ci
+
+      - run: pip install -r scripts/akshare/requirements.txt
+
+      - run: npm run db:migrate
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - run: npm run sync:stocks -- --force
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
