@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 
-import { resolveStock } from '../../../lib/market/symbolResolver.js'
-import { fetchDailyBarsByTsCode, yyyymmdd } from '../../../lib/market/dailyData.js'
+import { guard } from '../../../lib/api/guard.js'
+import { heuristicPredict } from '../../../lib/services/predictHeuristic.js'
 
 function isWeekend(date) {
   const d = date.getDay()
@@ -100,88 +100,19 @@ export async function GET(request) {
     return new Response(JSON.stringify({ error: 'symbol is required' }), { status: 400, headers: { 'content-type': 'application/json' } })
   }
 
-  const tokenSet = !!process.env.TUSHARE_TOKEN
-  if (!tokenSet) {
-    return new Response(JSON.stringify({ error: 'Tushare token missing', hint: 'set TUSHARE_TOKEN env' }), { status: 500, headers: { 'content-type': 'application/json' } })
-  }
+  const g = await guard(request, {
+    name: 'predict',
+    rateLimits: [
+      { scope: 'ip', limit: 30, windowSeconds: 60 },
+      { scope: 'subject', limit: 60, windowSeconds: 60 }
+    ]
+  })
+  if (!g.ok) return g.response
 
-  const resolved = await resolveStock(symbol)
-  if (resolved.error) {
-    if (resolved.error === 'DATABASE_URL missing') {
-      return new Response(JSON.stringify({ error: resolved.error }), { status: 500, headers: { 'content-type': 'application/json' } })
-    }
-    return new Response(JSON.stringify({ error: resolved.error }), { status: 400, headers: { 'content-type': 'application/json' } })
-  }
-  const ts_code = resolved.ts_code
+  const baseHeaders = { 'content-type': 'application/json', ...(g.headers || {}) }
+  const resp = (obj, status) => new Response(JSON.stringify(obj), { status, headers: baseHeaders })
 
-  const today = new Date()
-  const start = new Date(today)
-  start.setDate(start.getDate() - 450)
-  const start_date = yyyymmdd(start)
-  const end_date = yyyymmdd(today)
-
-  const daily = await fetchDailyBarsByTsCode(ts_code, start_date, end_date)
-  if (daily.error) {
-    return new Response(JSON.stringify({ error: daily.error }), { status: 502, headers: { 'content-type': 'application/json' } })
-  }
-  const rows = daily.bars || []
-  if (!rows.length) {
-    return new Response(JSON.stringify({ error: 'no data' }), { status: 404, headers: { 'content-type': 'application/json' } })
-  }
-
-  const closes = rows.map(r => r.close)
-  if (closes.length < 30) {
-    return new Response(JSON.stringify({ error: 'insufficient data' }), { status: 400, headers: { 'content-type': 'application/json' } })
-  }
-
-  const ma5 = sma(closes, 5)
-  const ma10 = sma(closes, 10)
-  const ma20 = sma(closes, 20)
-  const { dif, dea, hist } = macd(closes)
-  const { mid, upper, lower } = boll(closes, 20, 2)
-
-  const take = Math.min(120, rows.length)
-  const history = rows.slice(-take).map((r, i, arr) => ({
-    date: `${r.date.slice(0, 4)}-${r.date.slice(4, 6)}-${r.date.slice(6, 8)}`,
-    close: r.close
-  }))
-
-  const forecastDays = 15
-  const fc = []
-  let lastDate = new Date(`${rows[rows.length - 1].date.slice(0, 4)}-${rows[rows.length - 1].date.slice(4, 6)}-${rows[rows.length - 1].date.slice(6, 8)}`)
-  let series = closes.slice()
-  for (let i = 0; i < forecastDays; i++) {
-    const m20 = sma(series, 20)
-    const b = boll(series, 20, 2)
-    const m = macd(series)
-    const idx = series.length - 1
-    const p = series[idx]
-    const ma = m20[idx] ?? p
-    const up = b.upper[idx] ?? p * 1.05
-    const low = b.lower[idx] ?? p * 0.95
-    const d = m.dif[idx] ?? 0
-    const e = m.dea[idx] ?? 0
-    let score = 0
-    if (p > ma) score += 1
-    else score -= 1
-    if (d > e) score += 1
-    else score -= 1
-    if (p > up) score -= 1
-    if (p < low) score += 1
-    const base = 0.0025
-    let pct = Math.max(-0.02, Math.min(0.02, score * base))
-    const nxt = Math.max(0.5, Number((p * (1 + pct)).toFixed(2)))
-    lastDate = nextTradingDay(lastDate)
-    fc.push({ date: formatDate(lastDate), close: nxt })
-    series = [...series, nxt]
-  }
-
-  const body = {
-    symbol: ts_code,
-    history: history,
-    forecast: fc,
-    note: 'Data from Tushare Pro, heuristic forecast using MA/MACD/BOLL'
-  }
-
-  return new Response(JSON.stringify(body), { headers: { 'content-type': 'application/json' } })
+  const r = await heuristicPredict({ symbol })
+  if (r.error) return resp({ error: r.error }, r.status || 400)
+  return resp(r.data, 200)
 }

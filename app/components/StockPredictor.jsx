@@ -372,7 +372,14 @@ export default function StockPredictor({ variant = 'neo' }) {
       }
       code = list[0].ts_code
     }
-    const res = await fetch(`/api/stocks/daily?input=${encodeURIComponent(code)}&start_date=${start_date}&end_date=${end_date}`)
+    let headers = {}
+    try {
+      if (typeof window !== 'undefined') {
+        const k = window.localStorage.getItem('ASTOCKLOG_API_KEY') || ''
+        if (k) headers = { 'x-api-key': k }
+      }
+    } catch {}
+    const res = await fetch(`/api/stocks/daily?input=${encodeURIComponent(code)}&start_date=${start_date}&end_date=${end_date}`, { headers })
     if (!res.ok) throw new Error(`日线接口失败：${res.status}`)
     const json = await res.json()
     if (json.code !== 0) throw new Error(json.msg || '日线接口返回错误')
@@ -405,9 +412,16 @@ export default function StockPredictor({ variant = 'neo' }) {
         body_preview: JSON.stringify(body).slice(0, 300)
       })
     } catch {}
+    let headers = { 'content-type': 'application/json' }
+    try {
+      if (typeof window !== 'undefined') {
+        const k = window.localStorage.getItem('ASTOCKLOG_API_KEY') || ''
+        if (k) headers = { ...headers, 'x-api-key': k }
+      }
+    } catch {}
     const res = await fetch('/api/llm', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers,
       body: JSON.stringify(body)
     })
     if (!res.ok) {
