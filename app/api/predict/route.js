@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic'
 
-const TUSHARE_URL = 'https://api.tushare.pro'
+import { resolveStock } from '../../../lib/market/symbolResolver.js'
+import { fetchDailyBarsByTsCode, yyyymmdd } from '../../../lib/market/dailyData.js'
 
 function isWeekend(date) {
   const d = date.getDay()
@@ -19,32 +20,6 @@ function formatDate(d) {
   const m = String(d.getMonth() + 1).padStart(2, '0')
   const day = String(d.getDate()).padStart(2, '0')
   return `${y}-${m}-${day}`
-}
-
-function yyyymmdd(d) {
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}${m}${day}`
-}
-
-async function tusharePost(api_name, params, fields) {
-  const token = process.env.TUSHARE_TOKEN
-  if (!token) {
-    return { error: 'Tushare token not configured' }
-  }
-  const body = JSON.stringify({ api_name, token, params, fields })
-  const res = await fetch(TUSHARE_URL, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body
-  })
-  if (!res.ok) return { error: `tushare http ${res.status}` }
-  const json = await res.json()
-  if (json.code !== 0) return { error: json.msg || 'tushare error' }
-  const { fields: fs, items } = json.data
-  const rows = items.map(arr => Object.fromEntries(fs.map((f, i) => [f, arr[i]])))
-  return { rows }
 }
 
 function sma(values, period) {
@@ -118,25 +93,6 @@ function macd(values) {
   return { dif, dea, hist }
 }
 
-function normalizeTsCode(input) {
-  const s = input.toUpperCase().trim()
-  if (s.includes('.')) return s
-  if (/^\d{6}$/.test(s)) {
-    if (s.startsWith('6')) return `${s}.SH`
-    return `${s}.SZ`
-  }
-  return null
-}
-
-async function resolveTsCode(raw) {
-  const normalized = normalizeTsCode(raw)
-  if (normalized) return { ts_code: normalized }
-  const r = await tusharePost('stock_basic', { name: raw, list_status: 'L' }, 'ts_code,name')
-  if (r.error) return { error: r.error }
-  if (!r.rows.length) return { error: 'symbol not found' }
-  return { ts_code: r.rows[0].ts_code }
-}
-
 export async function GET(request) {
   const { searchParams } = new URL(request.url)
   const symbol = (searchParams.get('symbol') || '').trim()
@@ -149,8 +105,11 @@ export async function GET(request) {
     return new Response(JSON.stringify({ error: 'Tushare token missing', hint: 'set TUSHARE_TOKEN env' }), { status: 500, headers: { 'content-type': 'application/json' } })
   }
 
-  const resolved = await resolveTsCode(symbol)
+  const resolved = await resolveStock(symbol)
   if (resolved.error) {
+    if (resolved.error === 'DATABASE_URL missing') {
+      return new Response(JSON.stringify({ error: resolved.error }), { status: 500, headers: { 'content-type': 'application/json' } })
+    }
     return new Response(JSON.stringify({ error: resolved.error }), { status: 400, headers: { 'content-type': 'application/json' } })
   }
   const ts_code = resolved.ts_code
@@ -161,28 +120,14 @@ export async function GET(request) {
   const start_date = yyyymmdd(start)
   const end_date = yyyymmdd(today)
 
-  const daily = await tusharePost(
-    'daily',
-    { ts_code, start_date, end_date },
-    'trade_date,open,high,low,close,vol'
-  )
+  const daily = await fetchDailyBarsByTsCode(ts_code, start_date, end_date)
   if (daily.error) {
     return new Response(JSON.stringify({ error: daily.error }), { status: 502, headers: { 'content-type': 'application/json' } })
   }
-  if (!daily.rows.length) {
+  const rows = daily.bars || []
+  if (!rows.length) {
     return new Response(JSON.stringify({ error: 'no data' }), { status: 404, headers: { 'content-type': 'application/json' } })
   }
-
-  const rows = daily.rows
-    .map(r => ({
-      date: r.trade_date,
-      open: Number(r.open),
-      high: Number(r.high),
-      low: Number(r.low),
-      close: Number(r.close),
-      vol: Number(r.vol)
-    }))
-    .sort((a, b) => a.date.localeCompare(b.date))
 
   const closes = rows.map(r => r.close)
   if (closes.length < 30) {

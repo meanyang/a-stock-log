@@ -498,6 +498,13 @@ function ok(data, status = 200) {
   return new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json' } })
 }
 
+function listModels() {
+  return [
+    { id: 'arcee-ai/trinity-large-preview:free', name: 'Arcee AI: Trinity Large Preview', type: 'chat', enabled: true },
+    { id: 'nvidia/nemotron-3-super-120b-a12b:free', name: 'NVIDIA: Nemotron 3 Super', type: 'chat', enabled: true }
+  ]
+}
+
 export async function POST(request) {
   try {
     const t0 = Date.now()
@@ -544,18 +551,6 @@ export async function POST(request) {
       } catch {}
       return ok({ code: 0, data: { forecast, provider: r.model, explanation } })
     }
-    if (action === 'metrics') {
-      return ok({ code: 0, msg: 'ok' })
-    }
-    if (action === 'models') {
-      const models = [
-        { id: 'arcee-ai/trinity-large-preview:free', name: 'Arcee AI: Trinity', type: 'chat', enabled: true }
-      ]
-      return ok({ code: 0, data: { models } })
-    }
-    if (action === 'backtest') {
-      return ok({ code: 0, msg: 'not_implemented' })
-    }
     return ok({ code: -1, msg: 'unknown action' }, 400)
   } catch (e) {
     return ok({ code: 500, msg: e?.message || String(e) }, 500)
@@ -566,10 +561,7 @@ export async function GET(request) {
   const url = new URL(request.url)
   const action = (url.searchParams.get('action') || '').toLowerCase()
   if (action === 'models') {
-    const models = [
-     { id: 'arcee-ai/trinity-large-preview:free', name: 'Arcee AI: Trinity Large Preview', type: 'chat', enabled: true },
-     { id: 'nvidia/nemotron-3-super-120b-a12b:free', name: 'NVIDIA: Nemotron 3 Super', type: 'chat', enabled: true }
-    ]
+    const models = listModels()
     return ok({ code: 0, data: { models } })
   }
   return ok({ code: -1, msg: 'use POST with action' }, 400)

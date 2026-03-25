@@ -1,28 +1,24 @@
 export const dynamic = 'force-dynamic'
 
 import { resolveStock } from '../../../../lib/market/symbolResolver.js'
-import { fetchDailyBarsByTsCode } from '../../../../lib/market/dailyData.js'
+import { fetchDailyBarsByTsCode, yyyymmdd } from '../../../../lib/market/dailyData.js'
 
 const cache = {
   daily: new Map()
 }
 
-function yyyymmdd(d) {
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}${m}${day}`
-}
 function nextYYYYMMDD(s) {
   if (!/^\d{8}$/.test(s)) return null
   const d = new Date(`${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`)
   d.setDate(d.getDate() + 1)
   return yyyymmdd(d)
 }
+
 function isAfter18() {
   const n = new Date()
   return n.getHours() >= 18
 }
+
 function ok(data, status = 200) {
   return new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json' } })
 }
@@ -36,7 +32,7 @@ function mergeByDate(a, b) {
 
 export async function GET(request) {
   const url = new URL(request.url)
-  const input = url.searchParams.get('input') || ''
+  const input = url.searchParams.get('input') || url.searchParams.get('ts_code') || ''
   const start_date = url.searchParams.get('start_date') || ''
   const end_date = url.searchParams.get('end_date') || ''
   const limitRaw = Number(url.searchParams.get('limit') || 400)
@@ -97,5 +93,7 @@ export async function GET(request) {
       }
     }
   }
+
   return ok({ code: 0, data: merged })
 }
+

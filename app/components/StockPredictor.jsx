@@ -372,7 +372,7 @@ export default function StockPredictor({ variant = 'neo' }) {
       }
       code = list[0].ts_code
     }
-    const res = await fetch(`/api/tushare/daily?input=${encodeURIComponent(code)}&start_date=${start_date}&end_date=${end_date}`)
+    const res = await fetch(`/api/stocks/daily?input=${encodeURIComponent(code)}&start_date=${start_date}&end_date=${end_date}`)
     if (!res.ok) throw new Error(`日线接口失败：${res.status}`)
     const json = await res.json()
     if (json.code !== 0) throw new Error(json.msg || '日线接口返回错误')
