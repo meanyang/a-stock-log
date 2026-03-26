@@ -86,6 +86,16 @@ export default function StockPredictor({ variant = 'neo' }) {
   const [showSuggest, setShowSuggest] = useState(false)
   const [selectedTsCode, setSelectedTsCode] = useState('')
   const suggestTimer = useRef(null)
+  function buildAuthHeaders(base) {
+    let headers = { ...(base || {}) }
+    try {
+      if (typeof window !== 'undefined') {
+        const k = window.localStorage.getItem('ASTOCKLOG_API_KEY') || ''
+        if (k && String(k).trim()) headers = { ...headers, 'x-api-key': String(k).trim() }
+      }
+    } catch {}
+    return headers
+  }
   const stepDefs = useMemo(() => ([
     { key: 'fetch', label: '拉取日线数据' },
     { key: 'fetch.req', label: '  • 请求已发送' },
@@ -343,7 +353,7 @@ export default function StockPredictor({ variant = 'neo' }) {
     return pts
   }
 
-  async function fetchDaily(input) {
+  async function resolveInput(input) {
     const today = new Date()
     const daySpan = range === '3M' ? 100 : range === '6M' ? 200 : 400
     const start = new Date(Date.now() - 1000 * 60 * 60 * 24 * daySpan)
@@ -372,74 +382,47 @@ export default function StockPredictor({ variant = 'neo' }) {
       }
       code = list[0].ts_code
     }
-    let headers = {}
-    try {
-      if (typeof window !== 'undefined') {
-        const k = window.localStorage.getItem('ASTOCKLOG_API_KEY') || ''
-        if (k) headers = { 'x-api-key': k }
-      }
-    } catch {}
-    const res = await fetch(`/api/stocks/daily?input=${encodeURIComponent(code)}&start_date=${start_date}&end_date=${end_date}`, { headers })
-    if (!res.ok) throw new Error(`日线接口失败：${res.status}`)
-    const json = await res.json()
-    if (json.code !== 0) throw new Error(json.msg || '日线接口返回错误')
-    const rows = json.data.rows || []
-    const arr = rows.map(r => ({
-      date: `${r.date.slice(0,4)}-${r.date.slice(4,6)}-${r.date.slice(6,8)}`,
-      open: Number(r.open),
-      high: Number(r.high),
-      low: Number(r.low),
-      close: Number(r.close),
-      vol: Number(r.vol)
-    }))
-    return { ts_code: json.data.ts_code, candles: arr }
+    return { ts_code: code, start_date, end_date }
   }
 
-  async function predictLLM(candlesArr, code) {
+  async function predictLLM(code, start_date, end_date) {
     const t0 = Date.now()
-    const body = {
-      action: 'predict',
-      data: { candles: candlesArr },
-      params: { symbol: code, horizon: 20, model: selectedModel || '' }
-    }
+    const body = { symbol: code, start_date, end_date, horizon: 20, model: selectedModel || '' }
     try {
       console.log('[Web] LLM input', {
         symbol: code,
         model: selectedModel || '',
         horizon: 20,
-        candles_len: candlesArr.length,
-        last_close: candlesArr[candlesArr.length - 1]?.close,
+        start_date,
+        end_date,
         body_preview: JSON.stringify(body).slice(0, 300)
       })
     } catch {}
-    let headers = { 'content-type': 'application/json' }
-    try {
-      if (typeof window !== 'undefined') {
-        const k = window.localStorage.getItem('ASTOCKLOG_API_KEY') || ''
-        if (k) headers = { ...headers, 'x-api-key': k }
-      }
-    } catch {}
-    const res = await fetch('/api/llm', {
+    const headers = buildAuthHeaders({ 'content-type': 'application/json' })
+    const res = await fetch('/api/predict', {
       method: 'POST',
       headers,
       body: JSON.stringify(body)
     })
     if (!res.ok) {
+      const st = res.status
       const t1 = Date.now()
-      try { console.log('[Web] LLM predict http error', { symbol: code, model: selectedModel, status: res.status, latency_ms: t1 - t0 }) } catch {}
-      setLlmLatency(t1 - t0)
-      return null
+      try { console.log('[Web] LLM predict http error', { symbol: code, model: selectedModel, status: st, latency_ms: t1 - t0 }) } catch {}
+      throw new Error(`预测接口失败：${st}`)
     }
     const json = await res.json()
     const t1 = Date.now()
     if (!json || json.code !== 0) {
       try { console.log('[Web] LLM predict nonzero', { symbol: code, model: selectedModel, code: json?.code, msg: json?.msg, latency_ms: t1 - t0 }) } catch {}
       setLlmLatency(t1 - t0)
-      return null
+      throw new Error(json?.msg || '预测接口返回错误')
     }
     const d = json.data || {}
     const arr = Array.isArray(d.forecast) ? d.forecast.map(x => ({ date: x.date, close: Number(x.close) })) : []
     const exp = Array.isArray(d.explanation) ? d.explanation.slice(0, 12) : []
+    const candles = Array.isArray(d.candles) ? d.candles : []
+    const provider = String(d.provider || '')
+    const ts_code = String(d.ts_code || code)
     try {
       console.log('[Web] LLM output', {
         symbol: code,
@@ -454,7 +437,7 @@ export default function StockPredictor({ variant = 'neo' }) {
     } catch {}
     try { console.log('[Web] LLM predict ok', { symbol: code, provider: d.provider, model: selectedModel, forecast_len: arr.length, explanation_len: exp.length, latency_ms: t1 - t0 }) } catch {}
     setLlmLatency(t1 - t0)
-    return { forecast: arr, explanation: exp }
+    return { ts_code, candles, forecast: arr, explanation: exp, provider }
   }
 
   function predictByIndicators(candlesArr, { ma20, macd, boll }, days) {
@@ -538,7 +521,17 @@ export default function StockPredictor({ variant = 'neo' }) {
     setError('')
     setLlmLatency(0)
     try {
-      const { ts_code, candles: arr } = await fetchDaily(s)
+      const { ts_code, start_date, end_date } = await resolveInput(s)
+      setKeyState('llm', 'active')
+      setKeyState('llm.queue', 'active')
+      await sleep(300)
+      setKeyState('llm.queue', 'done')
+      setKeyState('llm.run', 'active')
+      const llm = await predictLLM(ts_code, start_date, end_date)
+      setKeyState('llm.run', 'done')
+      setKeyState('llm', 'done')
+      if (!llm || !Array.isArray(llm.candles) || llm.candles.length === 0) throw new Error('预测接口返回空数据')
+      const arr = llm.candles
       setKeyState('fetch.srv', 'done')
       setKeyState('fetch.rx', 'active')
       await sleep(150)
@@ -546,7 +539,7 @@ export default function StockPredictor({ variant = 'neo' }) {
       setKeyState('fetch', 'done')
       setKeyState('ind', 'active')
       setKeyState('ind.ma', 'active')
-      setPrimary(ts_code)
+      setPrimary(llm.ts_code || ts_code)
       setCandles(arr)
       const closesArr = arr.map(c => c.close)
       const ma5_ = ma(closesArr, 5)
@@ -568,23 +561,9 @@ export default function StockPredictor({ variant = 'neo' }) {
       await sleep(180)
       setKeyState('prompt.tpl', 'done')
       setKeyState('prompt', 'done')
-      setKeyState('llm', 'active')
-      setKeyState('llm.queue', 'active')
-      await sleep(300)
-      setKeyState('llm.queue', 'done')
-      setKeyState('llm.run', 'active')
-      const llm = await predictLLM(arr, ts_code).catch(() => null)
-      setKeyState('llm.run', 'done')
-      setKeyState('llm', 'done')
       setKeyState('parse', 'active')
-      let fc = []
       let al = []
-      if (llm && Array.isArray(llm.forecast) && llm.forecast.length) {
-        fc = llm.forecast
-      } else {
-        fc = predictByIndicators(arr, { ma20: ma20_, macd: macd_, boll: boll_ }, 20)
-      }
-      const fcLocal = predictByIndicators(arr, { ma20: ma20_, macd: macd_, boll: boll_ }, 20)
+      const fc = (llm && Array.isArray(llm.forecast) && llm.forecast.length) ? llm.forecast : []
       if (llm && Array.isArray(llm.explanation) && llm.explanation.length) {
         al = llm.explanation
       } else {
@@ -595,12 +574,12 @@ export default function StockPredictor({ variant = 'neo' }) {
       await sleep(120)
       setKeyState('cal', 'done')
       setKeyState('draw', 'active')
-      if (llm && Array.isArray(llm.forecast) && llm.forecast.length) {
+      if (llm && Array.isArray(llm.forecast) && llm.forecast.length && llm.provider !== 'heuristic') {
         setForecastLLM(fc)
         setForecastLocal([])
       } else {
         setForecastLLM([])
-        setForecastLocal(fcLocal || [])
+        setForecastLocal(fc || [])
       }
       setAnalysis(al)
       setKeyState('draw', 'done')
@@ -786,7 +765,7 @@ export default function StockPredictor({ variant = 'neo' }) {
       <div className="relative w-full h-[220px] sm:h-[320px] lg:h-[480px]">
         <canvas ref={canvasRef} />
         {loading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-slate-900/60">
+            <div className="absolute inset-0 flex items-center justify-center bg-slate-900/60">
             <div className="w-[86%] max-w-[560px] rounded-xl border border-slate-700 bg-slate-950/80 p-4">
               <div className="mb-2 flex items-center gap-2">
                 <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-cyan-400" />
