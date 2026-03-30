@@ -70,10 +70,19 @@ function runProcess(bin, args, options = {}) {
   })
 }
 
+async function resolveCertifiBundle(env) {
+  const r = await runProcess('python3', ['-c', 'import certifi; print(certifi.where())'], { env })
+  if (r.code !== 0) return ''
+  const p = String(r.stdout || '').trim()
+  return p
+}
+
 async function ensureAkshareDeps() {
   const depsDir = path.join(__dirname, 'akshare', '_pydeps')
   const reqPath = path.join(__dirname, 'akshare', 'requirements.txt')
-  const env = { ...process.env, PYTHONPATH: depsDir + (process.env.PYTHONPATH ? `:${process.env.PYTHONPATH}` : '') }
+  const baseEnv = { ...process.env, PYTHONPATH: depsDir + (process.env.PYTHONPATH ? `:${process.env.PYTHONPATH}` : '') }
+  const ca = await resolveCertifiBundle(baseEnv)
+  const env = ca ? { ...baseEnv, SSL_CERT_FILE: ca, REQUESTS_CA_BUNDLE: ca } : baseEnv
 
   const probe = await runProcess('python3', ['-c', 'import akshare, pandas'], { env })
   if (probe.code === 0) return { env }
@@ -98,20 +107,28 @@ async function ensureAkshareDeps() {
 async function runPythonDump() {
   const scriptPath = path.join(__dirname, 'akshare', 'stocks_dump.py')
   const { env } = await ensureAkshareDeps()
-  const r = await runProcess('python3', [scriptPath], { env })
-  if (r.code !== 0) {
-    const err = new Error(`python failed (${r.code}): ${r.stderr.trim()}`)
-    err.code = 'PYTHON_FAILED'
-    throw err
+  let last = null
+  for (let i = 0; i < 3; i++) {
+    const r = await runProcess('python3', [scriptPath], { env })
+    if (r.code === 0) {
+      try {
+        return JSON.parse(r.stdout)
+      } catch (e) {
+        const err = new Error(`invalid json from python: ${e.message}`)
+        err.code = 'PYTHON_BAD_JSON'
+        err.stderr = r.stderr
+        throw err
+      }
+    }
+    last = r
+    if (i < 2) {
+      const waitMs = i === 0 ? 1200 : 3200
+      await new Promise(res => setTimeout(res, waitMs))
+    }
   }
-  try {
-    return JSON.parse(r.stdout)
-  } catch (e) {
-    const err = new Error(`invalid json from python: ${e.message}`)
-    err.code = 'PYTHON_BAD_JSON'
-    err.stderr = r.stderr
-    throw err
-  }
+  const err = new Error(`python failed (${last?.code ?? 1}): ${String(last?.stderr || '').trim()}`)
+  err.code = 'PYTHON_FAILED'
+  throw err
 }
 
 async function upsertExchanges(client) {
