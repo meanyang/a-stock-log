@@ -97,29 +97,15 @@ export default function StockPredictor({ variant = 'neo' }) {
     return headers
   }
   const stepDefs = useMemo(() => ([
-    { key: 'fetch', label: '拉取日线数据' },
-    { key: 'fetch.req', label: '  • 请求已发送' },
-    { key: 'fetch.srv', label: '  • 服务器查询' },
-    { key: 'fetch.rx', label: '  • 数据接收' },
+    { key: 'request', label: '请求预测服务' },
     { key: 'ind', label: '计算技术指标' },
-    { key: 'ind.ma', label: '  • 移动均线' },
-    { key: 'ind.boll', label: '  • 布林带' },
-    { key: 'ind.macd', label: '  • MACD' },
-    { key: 'prompt', label: '构建预测提示' },
-    { key: 'prompt.ctx', label: '  • 整理最近收盘' },
-    { key: 'prompt.tpl', label: '  • 生成提示模板' },
-    { key: 'llm', label: '调用模型' },
-    { key: 'llm.queue', label: '  • 排队中' },
-    { key: 'llm.run', label: '  • 生成中' },
-    { key: 'parse', label: '解析预测结果' },
-    { key: 'cal', label: '校准波动与支撑阻力' },
-    { key: 'draw', label: '准备绘图' },
+    { key: 'parse', label: '整理预测结果' },
+    { key: 'draw', label: '渲染图表' },
   ]), [])
   const [steps, setSteps] = useState(() => stepDefs.map(s => ({ key: s.key, label: s.label, state: 'pending' })))
   useEffect(() => { setSteps(stepDefs.map(s => ({ key: s.key, label: s.label, state: 'pending' }))) }, [stepDefs])
   function resetSteps() { setSteps(stepDefs.map(s => ({ key: s.key, label: s.label, state: 'pending' }))) }
   function setKeyState(key, state) { setSteps(prev => prev.map(x => (x.key === key ? { ...x, state } : x))) }
-  function sleep(ms) { return new Promise(res => setTimeout(res, ms)) }
 
   useEffect(() => {
     async function loadModels() {
@@ -513,54 +499,25 @@ export default function StockPredictor({ variant = 'neo' }) {
     if (!s) return
     setLoading(true)
     resetSteps()
-    setKeyState('fetch', 'active')
-    setKeyState('fetch.req', 'active')
-    await sleep(250)
-    setKeyState('fetch.req', 'done')
-    setKeyState('fetch.srv', 'active')
+    setKeyState('request', 'active')
     setError('')
     setLlmLatency(0)
     try {
       const { ts_code, start_date, end_date } = await resolveInput(s)
-      setKeyState('llm', 'active')
-      setKeyState('llm.queue', 'active')
-      await sleep(300)
-      setKeyState('llm.queue', 'done')
-      setKeyState('llm.run', 'active')
       const llm = await predictLLM(ts_code, start_date, end_date)
-      setKeyState('llm.run', 'done')
-      setKeyState('llm', 'done')
+      setKeyState('request', 'done')
       if (!llm || !Array.isArray(llm.candles) || llm.candles.length === 0) throw new Error('预测接口返回空数据')
       const arr = llm.candles
-      setKeyState('fetch.srv', 'done')
-      setKeyState('fetch.rx', 'active')
-      await sleep(150)
-      setKeyState('fetch.rx', 'done')
-      setKeyState('fetch', 'done')
       setKeyState('ind', 'active')
-      setKeyState('ind.ma', 'active')
       setPrimary(llm.ts_code || ts_code)
       setCandles(arr)
       const closesArr = arr.map(c => c.close)
       const ma5_ = ma(closesArr, 5)
       const ma10_ = ma(closesArr, 10)
       const ma20_ = ma(closesArr, 20)
-      setKeyState('ind.ma', 'done')
-      setKeyState('ind.boll', 'active')
       const boll_ = boll(closesArr, 20, 2)
-      setKeyState('ind.boll', 'done')
-      setKeyState('ind.macd', 'active')
       const macd_ = macd(closesArr, 12, 26, 9)
-      setKeyState('ind.macd', 'done')
       setKeyState('ind', 'done')
-      setKeyState('prompt', 'active')
-      setKeyState('prompt.ctx', 'active')
-      await sleep(180)
-      setKeyState('prompt.ctx', 'done')
-      setKeyState('prompt.tpl', 'active')
-      await sleep(180)
-      setKeyState('prompt.tpl', 'done')
-      setKeyState('prompt', 'done')
       setKeyState('parse', 'active')
       let al = []
       const fc = (llm && Array.isArray(llm.forecast) && llm.forecast.length) ? llm.forecast : []
@@ -570,9 +527,6 @@ export default function StockPredictor({ variant = 'neo' }) {
         al = buildLocalAnalysis(arr, { ma5: ma5_, ma10: ma10_, ma20: ma20_, macd: macd_, boll: boll_ }, fc)
       }
       setKeyState('parse', 'done')
-      setKeyState('cal', 'active')
-      await sleep(120)
-      setKeyState('cal', 'done')
       setKeyState('draw', 'active')
       if (llm && Array.isArray(llm.forecast) && llm.forecast.length && llm.provider !== 'heuristic') {
         setForecastLLM(fc)
