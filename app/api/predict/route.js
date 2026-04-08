@@ -27,7 +27,7 @@ export async function POST(request) {
     const start_date = String(body?.start_date || '').trim()
     const end_date = String(body?.end_date || '').trim()
     const horizon = Number(body?.horizon || body?.params?.horizon || process.env.PREDICT_HORIZON_DAYS || 20)
-    const model = String(body?.model || body?.params?.model || 'arcee-ai/trinity-large-preview:free').trim()
+    const model = String(body?.model || body?.params?.model || 'minimax/minimax-m2.5:free').trim()
     if (!symbol) return resp({ code: -1, msg: 'symbol required' }, 400)
 
     const candlesRes = await getCandlesForPredict({ symbol, start_date, end_date, backDays: 90, limit: 300 })
