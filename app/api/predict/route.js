@@ -2,7 +2,6 @@ export const dynamic = 'force-dynamic'
 
 import { guard } from '../../../lib/api/guard.js'
 import { heuristicPredict } from '../../../lib/services/predictHeuristic.js'
-import { getCandlesForPredict } from '../../../lib/services/stocksDaily.js'
 import { runLlmPredict } from '../../../lib/services/llm.js'
 
 export async function POST(request) {
@@ -29,6 +28,9 @@ export async function POST(request) {
     const horizon = Number(body?.horizon || body?.params?.horizon || process.env.PREDICT_HORIZON_DAYS || 20)
     const model = String(body?.model || body?.params?.model || 'minimax/minimax-m2.5:free').trim()
     if (!symbol) return resp({ code: -1, msg: 'symbol required' }, 400)
+
+    const { getCandlesForPredict } = await import('../../../lib/services/stocksDaily.js')
+    if (typeof getCandlesForPredict !== 'function') return resp({ code: 500, msg: 'getCandlesForPredict is not defined' }, 500)
 
     const candlesRes = await getCandlesForPredict({ symbol, start_date, end_date, backDays: 90, limit: 300 })
     if (candlesRes.error) return resp({ code: -2, msg: candlesRes.error }, candlesRes.status || 502)
