@@ -26,7 +26,7 @@ export async function POST(request) {
     const start_date = String(body?.start_date || '').trim()
     const end_date = String(body?.end_date || '').trim()
     const horizon = Number(body?.horizon || body?.params?.horizon || process.env.PREDICT_HORIZON_DAYS || 20)
-    const model = String(body?.model || body?.params?.model || 'minimax/minimax-m2.5:free').trim()
+    const model = String(body?.model || body?.params?.model || 'liquid/lfm-2.5-1.2b-thinking:free').trim()
     if (!symbol) return resp({ code: -1, msg: 'symbol required' }, 400)
 
     const { getCandlesForPredict } = await import('../../../lib/services/stocksDaily.js')
@@ -48,19 +48,29 @@ export async function POST(request) {
     const llmRequireAuth = String(process.env.LLM_REQUIRE_AUTH || '').toLowerCase() === 'true'
     const allowLlm = !(llmRequireAuth && !g.token)
     if (allowLlm) {
-      const r = await runLlmPredict(llmInput)
-      if (!r?.error) {
-        const d = r?.data || {}
-        forecast = Array.isArray(d.forecast) ? d.forecast : []
-        explanation = Array.isArray(d.explanation) ? d.explanation : []
-        provider = d.provider || ''
+      try {
+        const r = await runLlmPredict(llmInput)
+        if (r?.error) {
+          try {
+            console.error('[api/predict] llm failed', { symbol, model, horizon, error: r.error, status: r.status || null })
+          } catch {}
+        } else {
+          const d = r?.data || {}
+          forecast = Array.isArray(d.forecast) ? d.forecast : []
+          explanation = Array.isArray(d.explanation) ? d.explanation : []
+          provider = d.provider || ''
+        }
+      } catch (e) {
+        try {
+          console.error('[api/predict] llm exception', { symbol, model, horizon, error: e?.message || String(e) })
+        } catch {}
       }
     }
     if (forecast.length === 0) {
       const fallback = await heuristicPredict({ symbol, horizonDays: horizon })
       if (fallback.error) return resp({ code: -3, msg: fallback.error }, fallback.status || 500)
       forecast = Array.isArray(fallback.data?.forecast) ? fallback.data.forecast : []
-      explanation = ['使用本地规则生成']
+      explanation = Array.isArray(fallback.data?.explanation) && fallback.data.explanation.length ? fallback.data.explanation : ['使用本地规则生成']
       provider = 'heuristic'
     }
     return resp(
