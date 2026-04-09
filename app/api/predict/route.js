@@ -26,7 +26,15 @@ export async function POST(request) {
     const start_date = String(body?.start_date || '').trim()
     const end_date = String(body?.end_date || '').trim()
     const horizon = Number(body?.horizon || body?.params?.horizon || process.env.PREDICT_HORIZON_DAYS || 20)
-    const model = String(body?.model || body?.params?.model || 'liquid/lfm-2.5-1.2b-thinking:free').trim()
+    const llmProvider = process.env.LLM_PROVIDER || 'openrouter'
+    const defaultModel = llmProvider === 'glm'
+      ? String(process.env.GLM_MODEL || 'GLM-4-Flash')
+      : llmProvider === 'openai'
+        ? String(process.env.OPENAI_MODEL || 'gpt-4o-mini')
+        : llmProvider === 'deepseek'
+          ? String(process.env.DEEPSEEK_MODEL || 'deepseek-chat')
+          : String(process.env.OPENROUTER_MODEL || 'liquid/lfm-2.5-1.2b-thinking:free')
+    const model = String(body?.model || body?.params?.model || defaultModel).trim()
     if (!symbol) return resp({ code: -1, msg: 'symbol required' }, 400)
 
     const { getCandlesForPredict } = await import('../../../lib/services/stocksDaily.js')
