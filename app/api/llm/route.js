@@ -2,6 +2,8 @@ export const dynamic = 'force-dynamic'
 
 import { guard } from '../../../lib/api/guard.js'
 import { listModels, runLlmPredict } from '../../../lib/services/llm.js'
+import { getServerSession } from 'next-auth/next'
+import { authOptions } from '../../../auth.js'
 
 function ok(data, status = 200, extraHeaders = {}) {
   return new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json', ...extraHeaders } })
@@ -9,9 +11,12 @@ function ok(data, status = 200, extraHeaders = {}) {
 
 export async function POST(request) {
   try {
+    const session = await getServerSession(authOptions)
+    const userId = session?.user?.id
+    if (!userId) return ok({ code: 401, msg: 'login required' }, 401)
     const g = await guard(request, {
       name: 'llm.predict',
-      requireAuth: String(process.env.LLM_REQUIRE_AUTH || '').toLowerCase() === 'true',
+      subject: `user:${userId}`,
       rateLimits: [
         { scope: 'ip', limit: Number(process.env.LLM_RL_IP_PER_MIN || 10), windowSeconds: 60 },
         { scope: 'subject', limit: Number(process.env.LLM_RL_SUBJECT_PER_MIN || 20), windowSeconds: 60 }
@@ -47,4 +52,3 @@ export async function GET(request) {
   }
   return ok({ code: -1, msg: 'use POST with action' }, 400)
 }
-

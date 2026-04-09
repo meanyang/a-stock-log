@@ -14,5 +14,9 @@ export default {
   contact: {
     title: '联系我们',
     type: 'page'
+  },
+  login: {
+    title: '登录',
+    type: 'page'
   }
 }

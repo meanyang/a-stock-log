@@ -1,5 +1,6 @@
 import { Head } from 'nextra/components'
 import './globals.css'
+import AuthProvider from './components/AuthProvider'
 
 export const metadata = {
   title: 'AStockLog - A股日志',
@@ -37,7 +38,9 @@ export default async function RootLayout({ children }) {
         <link rel="android-chrome" href="/android-chrome-512x512.png" sizes="512x512" />
         <link rel="shortcut icon" href="/favicon.ico" />
       </Head>
-      <body>{children}</body>
+      <body>
+        <AuthProvider>{children}</AuthProvider>
+      </body>
     </html>
   )
 }

@@ -3,11 +3,22 @@ export const dynamic = 'force-dynamic'
 import { guard } from '../../../lib/api/guard.js'
 import { heuristicPredict } from '../../../lib/services/predictHeuristic.js'
 import { runLlmPredict } from '../../../lib/services/llm.js'
+import { getServerSession } from 'next-auth/next'
+import { authOptions } from '../../../auth.js'
 
 export async function POST(request) {
   try {
+    const session = await getServerSession(authOptions)
+    const userId = session?.user?.id
+    if (!userId) {
+      return new Response(JSON.stringify({ code: 401, msg: 'login required' }), {
+        status: 401,
+        headers: { 'content-type': 'application/json' }
+      })
+    }
     const g = await guard(request, {
       name: 'predict.unified',
+      subject: `user:${userId}`,
       rateLimits: [
         { scope: 'ip', limit: Number(process.env.LLM_RL_IP_PER_MIN || 10), windowSeconds: 60 },
         { scope: 'subject', limit: Number(process.env.LLM_RL_SUBJECT_PER_MIN || 20), windowSeconds: 60 }
@@ -53,26 +64,22 @@ export async function POST(request) {
     let forecast = []
     let explanation = []
     let provider = ''
-    const llmRequireAuth = String(process.env.LLM_REQUIRE_AUTH || '').toLowerCase() === 'true'
-    const allowLlm = !(llmRequireAuth && !g.token)
-    if (allowLlm) {
-      try {
-        const r = await runLlmPredict(llmInput)
-        if (r?.error) {
-          try {
-            console.error('[api/predict] llm failed', { symbol, model, horizon, error: r.error, status: r.status || null })
-          } catch {}
-        } else {
-          const d = r?.data || {}
-          forecast = Array.isArray(d.forecast) ? d.forecast : []
-          explanation = Array.isArray(d.explanation) ? d.explanation : []
-          provider = d.provider || ''
-        }
-      } catch (e) {
+    try {
+      const r = await runLlmPredict(llmInput)
+      if (r?.error) {
         try {
-          console.error('[api/predict] llm exception', { symbol, model, horizon, error: e?.message || String(e) })
+          console.error('[api/predict] llm failed', { symbol, model, horizon, error: r.error, status: r.status || null })
         } catch {}
+      } else {
+        const d = r?.data || {}
+        forecast = Array.isArray(d.forecast) ? d.forecast : []
+        explanation = Array.isArray(d.explanation) ? d.explanation : []
+        provider = d.provider || ''
       }
+    } catch (e) {
+      try {
+        console.error('[api/predict] llm exception', { symbol, model, horizon, error: e?.message || String(e) })
+      } catch {}
     }
     if (forecast.length === 0) {
       const fallback = await heuristicPredict({ symbol, horizonDays: horizon })

@@ -394,6 +394,7 @@ export default function StockPredictor({ variant = 'neo' }) {
       const st = res.status
       const t1 = Date.now()
       try { console.log('[Web] LLM predict http error', { symbol: code, model: selectedModel, status: st, latency_ms: t1 - t0 }) } catch {}
+      if (st === 401) throw new Error('请先登录后使用该功能')
       throw new Error(`预测接口失败：${st}`)
     }
     const json = await res.json()
