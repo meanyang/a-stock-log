@@ -10,15 +10,9 @@ export async function POST(request) {
   try {
     const session = await getServerSession(authOptions)
     const userId = session?.user?.id
-    if (!userId) {
-      return new Response(JSON.stringify({ code: 401, msg: 'login required' }), {
-        status: 401,
-        headers: { 'content-type': 'application/json' }
-      })
-    }
     const g = await guard(request, {
       name: 'predict.unified',
-      subject: `user:${userId}`,
+      ...(userId ? { subject: `user:${userId}` } : {}),
       rateLimits: [
         { scope: 'ip', limit: Number(process.env.LLM_RL_IP_PER_MIN || 10), windowSeconds: 60 },
         { scope: 'subject', limit: Number(process.env.LLM_RL_SUBJECT_PER_MIN || 20), windowSeconds: 60 }
