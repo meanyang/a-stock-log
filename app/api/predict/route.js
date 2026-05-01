@@ -38,7 +38,7 @@ export async function POST(request) {
         ? String(process.env.OPENAI_MODEL || 'gpt-4o-mini')
         : llmProvider === 'deepseek'
           ? String(process.env.DEEPSEEK_MODEL || 'deepseek-chat')
-          : String(process.env.OPENROUTER_MODEL || 'liquid/lfm-2.5-1.2b-thinking:free')
+          : String(process.env.OPENROUTER_MODEL || 'poolside/laguna-xs.2:free')
     const model = String(body?.model || body?.params?.model || defaultModel).trim()
     if (!symbol) return resp({ code: -1, msg: 'symbol required' }, 400)
 
